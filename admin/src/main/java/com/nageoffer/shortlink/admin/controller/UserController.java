@@ -1,5 +1,6 @@
 package com.nageoffer.shortlink.admin.controller;
 
+import com.nageoffer.shortlink.admin.dto.resp.UserRespDTO;
 import com.nageoffer.shortlink.admin.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,11 +17,11 @@ public class UserController {
     private final UserService userService;
 
     /**
-     *根据用户名查询用户信息
+     * 根据用户名查询用户信息
      */
     @GetMapping("/api/shortlink/v1/user/{username}")
-    public String getUserByUsername(@PathVariable String username) {
-        return "Hi " + username;
+    public UserRespDTO getUserByUsername(@PathVariable String username) {
+        return userService.getUserByUsername(username);
 
     }
 }
