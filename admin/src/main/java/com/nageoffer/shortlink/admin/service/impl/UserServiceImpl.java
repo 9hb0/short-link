@@ -1,20 +1,31 @@
 package com.nageoffer.shortlink.admin.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.nageoffer.shortlink.admin.common.convention.exception.ClientException;
 import com.nageoffer.shortlink.admin.dao.entity.UserDO;
 import com.nageoffer.shortlink.admin.dao.mapper.UserMapper;
+import com.nageoffer.shortlink.admin.dto.req.UserRegisterReqDTO;
 import com.nageoffer.shortlink.admin.dto.resp.UserRespDTO;
 import com.nageoffer.shortlink.admin.service.UserService;
+import lombok.RequiredArgsConstructor;
+import org.redisson.api.RBloomFilter;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+
+import static com.nageoffer.shortlink.admin.common.enums.UserErrorCodeEnum.USER_NAME_EXIST;
+import static com.nageoffer.shortlink.admin.common.enums.UserErrorCodeEnum.USER_SAVE_EXIST;
 
 /**
  * 用户接口实现层
  */
 @Service
+@RequiredArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements UserService {
+
+    private final RBloomFilter<String> userRegisterCachePenetrationBloomFilter;
 
     public UserRespDTO getUserByUsername(String username) {
         LambdaQueryWrapper<UserDO> queryWrapper = Wrappers.lambdaQuery(UserDO.class)
@@ -25,11 +36,32 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         return result;
     }
 
+//    @Override
+//    public Boolean hasUserName(String username) {
+//        LambdaQueryWrapper<UserDO> queryWrapper = Wrappers.lambdaQuery(UserDO.class)
+//                .eq(UserDO::getUsername, username);
+//        UserDO userDO = baseMapper.selectOne(queryWrapper);
+//        return userDO == null;
+//    }
     @Override
     public Boolean hasUserName(String username) {
-        LambdaQueryWrapper<UserDO> queryWrapper = Wrappers.lambdaQuery(UserDO.class)
-                .eq(UserDO::getUsername, username);
-        UserDO userDO = baseMapper.selectOne(queryWrapper);
-        return userDO == null;
+        return userRegisterCachePenetrationBloomFilter.contains(username);
     }
+
+    /**
+     * 注册用户
+     * @param requestParam 用户请求参数：传输整个对象
+     */
+    @Override
+    public void Register(UserRegisterReqDTO requestParam) {
+        if (! hasUserName(requestParam.getUsername())) {
+            throw new ClientException(USER_NAME_EXIST);
+        }
+        int insert = baseMapper.insert(BeanUtil.toBean(requestParam, UserDO.class));
+        if (insert < 1) {
+            throw new ClientException(USER_SAVE_EXIST);
+        }
+        userRegisterCachePenetrationBloomFilter.add(requestParam.getUsername());
+    }
+
 }
