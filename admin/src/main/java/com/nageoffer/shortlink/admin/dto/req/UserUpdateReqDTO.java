@@ -2,12 +2,8 @@ package com.nageoffer.shortlink.admin.dto.req;
 
 import lombok.Data;
 
-/**
- * 用户注册请求参数
- */
 @Data
-//@TableName("t_user")
-public class UserRegisterReqDTO {
+public class UserUpdateReqDTO {
 
     /**
      * 用户名

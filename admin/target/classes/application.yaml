@@ -2,14 +2,25 @@ server:
   port: 8002
 
 spring:
+#  application:
+#    name: short-link-admin
+#  datasource:
+#    # ShardingSphere 对 Driver 自定义，实现分库分表等隐藏逻辑
+#    driver-class-name: org.apache.shardingsphere.driver.ShardingSphereDriver
+#    # ShardingSphere 配置文件路径
+#    url: jdbc:shardingsphere:classpath:shardingsphere-config.yaml
   datasource:
     username: root
     password: 20010304
-    url: jdbc:mysql://127.0.0.1:3306/shortlink?characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&transformedBitIsBoolean=true&serverTimezone=GMT%2B8
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:p6spy:mysql://127.0.0.1:3306/shortlink?characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&transformedBitIsBoolean=true&serverTimezone=GMT%2B8
+    driver-class-name: com.p6spy.engine.spy.P6SpyDriver
     hikari:
       connection-test-query: select 1
       connection-timeout: 20000
       idle-timeout: 300000
       maximum-pool-size: 5
       minimum-idle: 5
+  data:
+      redis:
+        host: 127.0.0.1
+        port: 6379
