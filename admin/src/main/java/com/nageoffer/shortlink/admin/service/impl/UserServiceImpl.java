@@ -112,7 +112,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             throw new ClientException("用户名不存在");
         }
 //        判断是不是有多个用户名反复登录
-//        StringRedisTemplate.hasKey("login_" + requestParam.getUsername());
+        Boolean hasLogin = stringRedisTemplate.hasKey("login_" + requestParam.getUsername());
+        if (hasLogin != null) {
+            throw new ClientException("用户已登录");
+        }
         /**
          * Hash
          * Key：login_用户名
@@ -128,7 +131,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
 
     @Override
     public Boolean checkLogin(String username, String token) {
-        return stringRedisTemplate.hasKey(token);
+
+        return stringRedisTemplate.opsForHash().get("login_" + username,token) != null;
     }
 
     @Override
