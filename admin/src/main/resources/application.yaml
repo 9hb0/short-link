@@ -12,8 +12,12 @@ spring:
   datasource:
     username: root
     password: 20010304
-    url: jdbc:p6spy:mysql://127.0.0.1:3306/shortlink?characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&transformedBitIsBoolean=true&serverTimezone=GMT%2B8
-    driver-class-name: com.p6spy.engine.spy.P6SpyDriver
+#    url: jdbc:p6spy:mysql://127.0.0.1:3306/shortlink?characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&transformedBitIsBoolean=true&serverTimezone=GMT%2B8
+#    driver-class-name: com.p6spy.engine.spy.P6SpyDriver
+    # ShardingSphere 对 Driver 自定义，实现分库分表等隐藏逻辑
+    driver-class-name: org.apache.shardingsphere.driver.ShardingSphereDriver
+    # ShardingSphere 配置文件路径
+    url: jdbc:shardingsphere:classpath:shardingsphere-config.yaml
     hikari:
       connection-test-query: select 1
       connection-timeout: 20000
