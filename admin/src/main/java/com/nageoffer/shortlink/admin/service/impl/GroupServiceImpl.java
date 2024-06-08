@@ -1,5 +1,7 @@
 package com.nageoffer.shortlink.admin.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.nageoffer.shortlink.admin.dao.entity.GroupDO;
 import com.nageoffer.shortlink.admin.dao.mapper.GruopMapper;
@@ -15,14 +17,34 @@ import org.springframework.stereotype.Service;
 @Service
 public class GroupServiceImpl extends ServiceImpl<GruopMapper, GroupDO> implements GroupService  {
 
+//    @Override
+//    public void saveGroup(String groupName) {
+////        saveGroup(userContext., groupName);
+//    }
+
     @Override
     public void saveGroup(String groupName) {
-//        GroupDO groupDO = new GroupDO();
+        String gid;
+        while (true) {
+            gid = RandomGenerate.generateRandomString();
+            if (!hasGid(gid)){
+                break;
+            }
+        }
         GroupDO groupDO = GroupDO.builder()
-                .gid(RandomGenerate.generateRandomString())
-                .username(groupName)
+                .gid(gid)
+                .name(groupName)
                 .build();
 //        groupDO.setName(groupName);
         baseMapper.insert(groupDO);
+    }
+
+    public boolean hasGid(String gid){
+        LambdaQueryWrapper<GroupDO> queryWrapper = Wrappers.lambdaQuery(GroupDO.class)
+                .eq(GroupDO::getGid, gid)
+                //设置用户名
+                .eq(GroupDO::getUsername, null);
+        GroupDO hasGroupFlag = baseMapper.selectOne(queryWrapper);
+        return hasGroupFlag != null;
     }
 }

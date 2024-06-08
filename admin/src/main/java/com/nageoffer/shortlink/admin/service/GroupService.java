@@ -10,4 +10,6 @@ public interface GroupService extends IService<GroupDO> {
      * @param groupName 短链接分组名
      */
     public void saveGroup(String  groupName);
+//    public void saveGroup(String username, String  groupName);
+
 }
