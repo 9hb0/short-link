@@ -34,6 +34,7 @@ public class GroupServiceImpl extends ServiceImpl<GruopMapper, GroupDO> implemen
         GroupDO groupDO = GroupDO.builder()
                 .gid(gid)
                 .name(groupName)
+                .sort_order(0)
                 .build();
 //        groupDO.setName(groupName);
         baseMapper.insert(groupDO);
