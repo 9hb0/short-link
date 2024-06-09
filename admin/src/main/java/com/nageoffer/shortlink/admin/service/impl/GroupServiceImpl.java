@@ -4,6 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.nageoffer.shortlink.admin.common.biz.user.UserContext;
 import com.nageoffer.shortlink.admin.dao.entity.GroupDO;
 import com.nageoffer.shortlink.admin.dao.mapper.GruopMapper;
 import com.nageoffer.shortlink.admin.dto.resp.ShortLinkGroupRespDTO;
@@ -39,7 +40,7 @@ public class GroupServiceImpl extends ServiceImpl<GruopMapper, GroupDO> implemen
                 .gid(gid)
                 .name(groupName)
                 .sort_order(0)
-                .username("axiaoxin")
+                .username(UserContext.getUsername())
                 .build();
 //        groupDO.setName(groupName);
         baseMapper.insert(groupDO);
@@ -50,7 +51,7 @@ public class GroupServiceImpl extends ServiceImpl<GruopMapper, GroupDO> implemen
         LambdaQueryWrapper<GroupDO> queryWrapper = Wrappers.lambdaQuery(GroupDO.class)
                 .eq(GroupDO::getDelFlag, 0)
                 //获取用户名，现在为axiaoxin
-                .eq(GroupDO::getUsername, "axiaoxin")
+                .eq(GroupDO::getUsername, UserContext.getUsername())
                 .orderByDesc(GroupDO::getSort_order, GroupDO::getUpdateTime);
         List<GroupDO> groupDOList = baseMapper.selectList(queryWrapper);
         return BeanUtil.copyToList(groupDOList, ShortLinkGroupRespDTO.class);
@@ -60,7 +61,7 @@ public class GroupServiceImpl extends ServiceImpl<GruopMapper, GroupDO> implemen
         LambdaQueryWrapper<GroupDO> queryWrapper = Wrappers.lambdaQuery(GroupDO.class)
                 .eq(GroupDO::getGid, gid)
                 //设置用户名
-                .eq(GroupDO::getUsername, null);
+                .eq(GroupDO::getUsername, UserContext.getUsername());
         GroupDO hasGroupFlag = baseMapper.selectOne(queryWrapper);
         return hasGroupFlag != null;
     }
