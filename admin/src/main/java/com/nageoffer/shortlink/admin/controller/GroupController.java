@@ -33,8 +33,20 @@ public class GroupController {
         return Results.success(groupService.listGroup());
     }
 
+    /**
+     * 修改分组名称
+     */
     @PutMapping("/api/short-link/admin/v1/group")
-    public Result<Void> updateGroup(@RequestBody ShortLinkGroupUpdateReqDTO shortLinkGroupUpdateReqDTO){
+    public Result<Void> updateGroup(@RequestBody ShortLinkGroupUpdateReqDTO requestParam){
+        groupService.updateGroup(requestParam);
+        return Results.success();
+    }
+    /**
+     * 删除分组
+     */
+    @DeleteMapping("/api/short-link/admin/v1/group")
+    public Result<Void> deleteGroup(@RequestParam String gid){
+        groupService.deleteGroup(gid);
         return Results.success();
     }
 }
