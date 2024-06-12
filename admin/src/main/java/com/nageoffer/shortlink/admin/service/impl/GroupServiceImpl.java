@@ -82,6 +82,11 @@ public class GroupServiceImpl extends ServiceImpl<GruopMapper, GroupDO> implemen
         baseMapper.update(groupDO, updateWrapper);
     }
 
+    @Override
+    public void sortGroup(List<ShortLinkGroupRespDTO> requestParam) {
+
+    }
+
     public boolean hasGid(String gid){
         LambdaQueryWrapper<GroupDO> queryWrapper = Wrappers.lambdaQuery(GroupDO.class)
                 .eq(GroupDO::getGid, gid)
