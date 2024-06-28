@@ -42,6 +42,7 @@ public class GroupServiceImpl extends ServiceImpl<GruopMapper, GroupDO> implemen
                 .gid(gid)
                 .name(groupName)
                 .sort_order(0)
+                //username为null
                 .username(UserContext.getUsername())
                 .build();
 //        groupDO.setName(groupName);
@@ -54,6 +55,7 @@ public class GroupServiceImpl extends ServiceImpl<GruopMapper, GroupDO> implemen
                 .eq(GroupDO::getDelFlag, 0)
                 //获取用户名，现在为axiaoxin
                 .eq(GroupDO::getUsername, UserContext.getUsername())
+//                .eq(GroupDO::getUsername, "axiaoxin")
                 .orderByDesc(GroupDO::getSort_order, GroupDO::getUpdateTime);
         List<GroupDO> groupDOList = baseMapper.selectList(queryWrapper);
         return BeanUtil.copyToList(groupDOList, ShortLinkGroupRespDTO.class);

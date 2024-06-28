@@ -70,7 +70,6 @@ public class UserController {
     /**
      * 用户登录
      */
-
     @PostMapping("/api/short-link/admin/v1/user/login")
     public Result<UserLoginRespDTO> login(@RequestBody UserLoginReqDTO requestParam) {
 //        userService.login(requestParam);

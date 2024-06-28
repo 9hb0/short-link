@@ -7,7 +7,6 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.nageoffer.shortlink.admin.common.convention.exception.ClientException;
-import com.nageoffer.shortlink.admin.common.convention.exception.ServiceException;
 import com.nageoffer.shortlink.admin.common.enums.UserErrorCodeEnum;
 import com.nageoffer.shortlink.admin.dao.entity.UserDO;
 import com.nageoffer.shortlink.admin.dao.mapper.UserMapper;
@@ -48,9 +47,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
                 .eq(UserDO::getUsername, username);
         UserDO userDO = baseMapper.selectOne(queryWrapper);
         if (userDO == null){
-            throw new ServiceException(UserErrorCodeEnum.USER_NULL);
+            throw new ClientException(UserErrorCodeEnum.USER_NULL);
         }
         UserRespDTO result = new UserRespDTO();
+        //在Java对象之间复制属性
         BeanUtils.copyProperties(userDO, result);
         return result;
     }
@@ -62,6 +62,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
 //        UserDO userDO = baseMapper.selectOne(queryWrapper);
 //        return userDO == null;
 //    }
+
     @Override
     public Boolean hasUserName(String username) {
         return !userRegisterCachePenetrationBloomFilter.contains(username);
@@ -113,19 +114,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         }
 //        判断是不是有多个用户名反复登录
         Boolean hasLogin = stringRedisTemplate.hasKey("login_" + requestParam.getUsername());
-        if (hasLogin != null) {
+        if (hasLogin != false) {
             throw new ClientException("用户已登录");
         }
-        /**
-         * Hash
-         * Key：login_用户名
-         * Value：
-         *  Key：token标识
-         *  Val：JSON 字符串（用户信息）
-         */
         String uuid = UUID.randomUUID().toString();
-        stringRedisTemplate.opsForHash().put("login_" + requestParam.getUsername(),"token", JSON.toJSONString(userDO));
-        stringRedisTemplate.expire("login_" + requestParam.getUsername(), 10L, TimeUnit.MINUTES);
+        //为什么添加JSON.toJSONString(userDO)
+        //put("hashValue","map1","map1-1")
+        //下面get只要两个参数get("hashValue","map1")
+        stringRedisTemplate.opsForHash().put("login_" + requestParam.getUsername(),uuid, JSON.toJSONString(userDO));
+        stringRedisTemplate.expire("login_" + requestParam.getUsername(), 100L, TimeUnit.MINUTES);
         return new UserLoginRespDTO(uuid);
     }
 

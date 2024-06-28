@@ -1,4 +1,4 @@
-package com.nageoffer.shortlink.admin.config;
+package com.nageoffer.shortlink.admin.common.config;
 
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RedissonClient;
@@ -14,7 +14,7 @@ public class RBloomFilterConfiguration {
     @Bean
     public RBloomFilter<String> userRegisterCachePenetrationBloomFilter(RedissonClient redissonClient){
         RBloomFilter<String> cachePenetrationBloomFilter = redissonClient.getBloomFilter("userRegisterCachePenetrationBloomFilter");
-        //第一个参数是布隆过滤器有多少参数，第二个是误判率
+        //第一个参数是布隆过滤器存储元素长度，第二个是误判率
         cachePenetrationBloomFilter.tryInit(1000000,0.001);
         return cachePenetrationBloomFilter;
     }
