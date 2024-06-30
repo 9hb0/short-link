@@ -18,7 +18,7 @@ spring:
     driver-class-name: org.apache.shardingsphere.driver.ShardingSphereDriver
     # ShardingSphere 配置文件路径
 #    url: jdbc:shardingsphere:classpath:shardingsphere-config-${database.env:env}.yaml
-    url: jdbc:shardingsphere:classpath:shardingsphere-config.yaml
+    url: jdbc:shardingsphere:classpath:shardingsphere-config-dev.yaml
     hikari:
       connection-test-query: select 1
       connection-timeout: 20000
