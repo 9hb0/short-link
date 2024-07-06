@@ -3,9 +3,11 @@ package com.nageoffer.shortlink.admin.common.config;
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import org.apache.ibatis.reflection.MetaObject;
 import org.springframework.stereotype.Component;
-
 import java.util.Date;
 
+/**
+ * * MyBatis Plus 自动填充，通过实现MetaObjectHandler接口实现
+ */
 @Component
 public class MyMetaObjectHandler implements MetaObjectHandler {
 

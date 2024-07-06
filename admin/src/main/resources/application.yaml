@@ -1,6 +1,12 @@
 server:
   port: 8002
 
+# application.yml
+debug: true
+logging:
+  level:
+    root: INFO
+    com.example: DEBUG
 spring:
 #  application:
 #    name: short-link-admin
