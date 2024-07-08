@@ -3,6 +3,10 @@ server:
 
 #普通方式
 spring:
+  mvc:
+    view:
+      prefix: /templates/
+      suffix: .html
   datasource:
     username: root
     password: 20010304

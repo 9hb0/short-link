@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+import static cn.hutool.core.date.DateTime.now;
 import static com.nageoffer.shortlink.project.common.constant.RedisKeyConstant.*;
 
 
@@ -199,11 +200,13 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         //不在redis中，再用bloomfilter判断fullshorturl是否存在
         boolean contains = shortUriCreateCachePenetrationBloomFilter.contains(fullShortUrl);
         if (!contains) {
+            ((HttpServletResponse)response).sendRedirect("page/notfound");
             return;
         }
         //判断是否是空值
         String gotoIsNullShortLink = stringRedisTemplate.opsForValue().get(String.format(GOTO_IS_NULL_SHORT_LINK_KEY, fullShortUrl));
         if (StrUtil.isNotBlank(gotoIsNullShortLink)) {
+            ((HttpServletResponse)response).sendRedirect("page/notfound");
             return;
         }
         //分布式锁
@@ -216,12 +219,23 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 ((HttpServletResponse)response).sendRedirect(originalLink);
                 return;
             }
+            //双重判定
+            gotoIsNullShortLink = stringRedisTemplate.opsForValue().get(String.format(GOTO_IS_NULL_SHORT_LINK_KEY, fullShortUrl));
+            if (StrUtil.isNotBlank(gotoIsNullShortLink)) {
+                ((HttpServletResponse)response).sendRedirect("page/notfound");
+                return;
+            }
 
             LambdaQueryWrapper<ShortLinkGotoDO> linkGotoQueryWrapper = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
                     .eq(ShortLinkGotoDO::getFullShortUrl, fullShortUrl);
             ShortLinkGotoDO shortLinkGotoDO = shortLinkGotoMapper.selectOne(linkGotoQueryWrapper);
             if (shortLinkGotoDO == null) {
-                stringRedisTemplate.opsForValue().set(String.format(GOTO_IS_NULL_SHORT_LINK_KEY, fullShortUrl), "-", 3, TimeUnit.MINUTES);
+                stringRedisTemplate.opsForValue().set(
+                        String.format(GOTO_IS_NULL_SHORT_LINK_KEY, fullShortUrl),
+                        "-", 3, TimeUnit.MINUTES
+                );
+
+                ((HttpServletResponse)response).sendRedirect("page/notfound");
                 //严禁来说此处需要进行风控
                 return;
             }
@@ -232,7 +246,20 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     .eq(ShortLinkDO::getEnableStatus, 0);
             ShortLinkDO shortLinkDO = baseMapper.selectOne(queryWrapper);
             if (shortLinkDO != null) {
-                stringRedisTemplate.opsForValue().set(String.format(GOTO_SHORT_LINK_KEY, fullShortUrl), shortLinkDO.getOriginUrl());
+                if (shortLinkDO.getValidDate() != null && shortLinkDO.getValidDate().before(now())) {
+                    stringRedisTemplate.opsForValue().set(
+                            String.format(GOTO_IS_NULL_SHORT_LINK_KEY, fullShortUrl),
+                            "-", 3, TimeUnit.MINUTES
+                    );
+
+                    ((HttpServletResponse)response).sendRedirect("page/notfound");
+                }
+                stringRedisTemplate.opsForValue().set(
+                        String.format(GOTO_SHORT_LINK_KEY, fullShortUrl),
+                        shortLinkDO.getOriginUrl(),
+                        LinkUtil.getLinkCacheValidTime(shortLinkDO.getValidDate()),
+                        TimeUnit.MILLISECONDS
+                );
                 ((HttpServletResponse)response).sendRedirect(shortLinkDO.getOriginUrl());
             }
         } finally {
