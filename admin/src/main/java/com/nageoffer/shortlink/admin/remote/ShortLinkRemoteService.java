@@ -10,7 +10,8 @@ import com.nageoffer.shortlink.admin.remote.dto.req.ShortLinkPageReqDTO;
 import com.nageoffer.shortlink.admin.remote.dto.resp.ShortLinkCreateRespDTO;
 import com.nageoffer.shortlink.admin.remote.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.nageoffer.shortlink.admin.remote.dto.resp.ShortLinkPageRespDTO;
-import com.nageoffer.shortlink.project.dto.req.ShortLinkUpdateReqDTO;
+import com.nageoffer.shortlink.admin.remote.dto.req.RecycleBinSaveReqDTO;
+import com.nageoffer.shortlink.admin.remote.dto.req.ShortLinkUpdateReqDTO;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.HashMap;
@@ -66,6 +67,24 @@ public interface ShortLinkRemoteService {
         String resultPageStr = HttpUtil.get("127.0.0.1:8003/api/short-link/v1/count", requestMap);
         return JSON.parseObject(resultPageStr, new TypeReference<>() {
         });
-        }
 
+    }
+
+    /**
+     * 根据url获取网站标题
+     * @param url
+     * @return
+     */
+    default String getTitle(String url) {
+        Map<String, Object> titleMap = new HashMap<>();
+        titleMap.put("url", url);
+        String title = HttpUtil.get("127.0.0.1:8003/api/short-link/v1/title", titleMap);
+        return title;
+    }
+
+
+    default Void saveRecycleBin(RecycleBinSaveReqDTO requestParam) {
+        HttpUtil.post("127.0.0.1:8003/api/short-link/v1/recycle-bin/save", JSON.toJSONString(requestParam));
+        return null;
+    }
 }

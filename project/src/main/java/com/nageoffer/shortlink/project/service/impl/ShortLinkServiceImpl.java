@@ -30,6 +30,10 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
@@ -38,6 +42,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -72,6 +77,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .validDate(requestParam.getValidDate())
                 .describe(requestParam.getDescribe())
                 .shortUri(shortLinkSuffix)
+                .favicon(getFaviconUrl(requestParam.getOriginUrl()))
                 .enableStatus(0)
                 .fullShortUrl(fullShortUrl)
                 .build();
@@ -276,15 +282,47 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             }
             String originUrl = requestParam.getOriginUrl();
             shortUri = HashUtil.hashToBase62(originUrl);
-//用布隆过滤器替代的方法
-//            LambdaQueryWrapper<ShortLinkDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkDO.class)
-//                    .eq(ShortLinkDO::getFullShortUrl, requestParam.getDomain() + "/" + shortUri);
-//            ShortLinkDO shortLinkDO = baseMapper.selectOne(queryWrapper);
-            if (!shortUriCreateCachePenetrationBloomFilter.contains(requestParam.getDomain() + "/" + shortUri)){
+//          用布隆过滤器替代的方法
+            LambdaQueryWrapper<ShortLinkDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkDO.class)
+                    .eq(ShortLinkDO::getFullShortUrl, requestParam.getDomain() + "/" + shortUri);
+            ShortLinkDO shortLinkDO = baseMapper.selectOne(queryWrapper);
+//            if (shortUriCreateCachePenetrationBloomFilter.contains(requestParam.getDomain() + "/" + shortUri)){
+//                break;
+//            }
+            if (shortLinkDO == null) {
                 break;
             }
             customGenerateCount++;
         }
         return shortUri;
+    }
+
+    private String getFaviconUrl(String websiteUrl) {
+        try {
+            // 发送HTTP HEAD请求以获取HTML头部信息（可以更快，但不一定包含favicon链接）
+            // 或者发送GET请求以获取完整的HTML文档
+            Document doc = Jsoup.connect(websiteUrl).get();
+
+            // 使用Jsoup选择器查找favicon链接
+            // 注意：favicon的链接可能有多种写法，这里只检查最常见的几种
+            Elements links = doc.select("link[rel=icon], link[rel=shortcut icon], link[type=image/x-icon]");
+            for (Element link : links) {
+                String href = link.attr("href");
+                if (!href.isEmpty() && !(href.startsWith("/") && !href.startsWith("//"))) {
+                    // 如果href是相对路径且不是协议相对URL，则转换为绝对路径
+                    if (href.startsWith("/")) {
+                        href = websiteUrl + href;
+                    }
+                    return href;
+                }
+            }
+
+            // 如果没有找到<link>标签，可以检查HTML的<head>部分是否包含内联的base64编码的favicon
+            // 这里不实现此逻辑，因为它更复杂且不如直接链接常见
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }
