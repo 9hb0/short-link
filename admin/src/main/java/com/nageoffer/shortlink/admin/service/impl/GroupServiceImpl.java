@@ -8,7 +8,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.nageoffer.shortlink.admin.common.biz.user.UserContext;
 import com.nageoffer.shortlink.admin.common.convention.result.Result;
 import com.nageoffer.shortlink.admin.dao.entity.GroupDO;
-import com.nageoffer.shortlink.admin.dao.mapper.GruopMapper;
+import com.nageoffer.shortlink.admin.dao.mapper.GroupMapper;
 import com.nageoffer.shortlink.admin.dto.req.ShortLinkGroupUpdateReqDTO;
 import com.nageoffer.shortlink.admin.dto.resp.ShortLinkGroupRespDTO;
 import com.nageoffer.shortlink.admin.remote.ShortLinkRemoteService;
@@ -27,7 +27,7 @@ import java.util.Optional;
  */
 @Slf4j
 @Service
-public class GroupServiceImpl extends ServiceImpl<GruopMapper, GroupDO> implements GroupService  {
+public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implements GroupService  {
 
 //    @Override
 //    public void saveGroup(String groupName) {

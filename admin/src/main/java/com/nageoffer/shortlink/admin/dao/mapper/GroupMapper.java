@@ -6,5 +6,5 @@ import com.nageoffer.shortlink.admin.dao.entity.GroupDO;
 /**
  * 短链接分组持久层
  */
-public interface GruopMapper extends BaseMapper<GroupDO> {
+public interface GroupMapper extends BaseMapper<GroupDO> {
 }
