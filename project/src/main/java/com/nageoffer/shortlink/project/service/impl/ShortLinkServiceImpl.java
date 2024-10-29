@@ -18,14 +18,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.nageoffer.shortlink.project.common.convention.exception.ClientException;
 import com.nageoffer.shortlink.project.common.convention.exception.ServiceException;
 import com.nageoffer.shortlink.project.common.enums.ValidDateTypeEnum;
-import com.nageoffer.shortlink.project.dao.entity.ShortLinkDO;
-import com.nageoffer.shortlink.project.dao.entity.ShortLinkGotoDO;
-import com.nageoffer.shortlink.project.dao.entity.TLinkAccessStatsDO;
-import com.nageoffer.shortlink.project.dao.entity.TLinkLocaleStatsDO;
-import com.nageoffer.shortlink.project.dao.mapper.ShortLinkGotoMapper;
-import com.nageoffer.shortlink.project.dao.mapper.ShortLinkMapper;
-import com.nageoffer.shortlink.project.dao.mapper.TLinkAccessStatsMapper;
-import com.nageoffer.shortlink.project.dao.mapper.TLinkLocaleStatsMapper;
+import com.nageoffer.shortlink.project.dao.entity.*;
+import com.nageoffer.shortlink.project.dao.mapper.*;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkCreateReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkPageReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkUpdateReqDTO;
@@ -59,11 +53,12 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static cn.hutool.core.date.DateTime.now;
 import static com.nageoffer.shortlink.project.common.constant.RedisKeyConstant.*;
 import static com.nageoffer.shortlink.project.common.constant.ShortLinkConstant.AMAP_REMOTE_URL;
-import static com.nageoffer.shortlink.project.util.LinkUtil.getIpAddress;
+import static com.nageoffer.shortlink.project.util.LinkUtil.*;
 
 
 @Service
@@ -76,6 +71,11 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     private final RedissonClient redissonClient;
     private final TLinkAccessStatsMapper tLinkAccessStatsMapper;
     private final TLinkLocaleStatsMapper tLinkLocaleStatsMapper;
+    private final TLinkOsStatsMapper tLinkOsStatsMapper;
+    private final TLinkBrowserStatsMapper tLinkBrowserStatsMapper;
+    private final TLinkAccessLogsMapper tLinkAccessLogsMapper;
+    private final TLinkDeviceStatsMapper tLinkDeviceStatsMapper;
+    private final TLinkNetworkStatsMapper tLinkNetworkStatsMapper;
 
     @Value("${short-link.stats.locale.amap-key}")
     private String amapKey;
@@ -296,7 +296,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     }
 
     /**
-     * 插入或更新
+     * 插入或更新-->记录短链接访问状态
      * @param fullShortUrl
      * @param gid
      * @param request
@@ -304,15 +304,19 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
      */
     private void insertOrUpdate(String fullShortUrl, String gid, ServletRequest request, ServletResponse response) {
         Cookie[] cookies = ((HttpServletRequest) request).getCookies();
+        //多线程环境中提供原子操作
         AtomicBoolean uvFirstFlag = new AtomicBoolean();
-        Runnable addResponseCookieTask = () -> {
-            String uv = UUID.randomUUID().toString();
-            Cookie uvcookie = new Cookie("uv", uv);
+        try {
+            AtomicReference<String> uv = new AtomicReference<>();
+            Runnable addResponseCookieTask = () -> {
+            uv.set(UUID.randomUUID().toString());
+            Cookie uvcookie = new Cookie("uv", uv.get());
             uvcookie.setMaxAge(60 * 60 * 24 * 30);
             uvcookie.setPath(StrUtil.sub(fullShortUrl, fullShortUrl.indexOf("/"), fullShortUrl.length()));
             ((HttpServletResponse)response).addCookie(uvcookie);
-        };
-        try {
+            uvFirstFlag.set(Boolean.TRUE);
+            stringRedisTemplate.opsForSet().add("short-link:stats:uv:" + fullShortUrl, uv.get() );
+            };
             //设置COOKIE，判断是否为同一用户访问
             if (ArrayUtil.isNotEmpty(cookies)) {
                 Arrays.stream(cookies)
@@ -320,6 +324,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                         .findFirst()
                         .map(Cookie::getValue)
                         .ifPresentOrElse(each -> {
+                            uv.set(each);
                             Long uvAdded = stringRedisTemplate.opsForSet().add("short-link:stats:uv:" + fullShortUrl, each);
                             uvFirstFlag.set(uvAdded != null && uvAdded > 0L);
                         }, addResponseCookieTask);
@@ -360,6 +365,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             String localeResultStr = HttpUtil.get(AMAP_REMOTE_URL, paramMap);
             JSONObject localResultobj = JSON.parseObject(localeResultStr);
             String infocode = localResultobj.getString("infocode");
+            String actualProvince = "未知";
+            String actualCity = "未知";
             if (StrUtil.isNotBlank(infocode) && StrUtil.equals(infocode, "10000")) {
                 String province = localResultobj.getString("province");
                 Boolean unknownFlag = StrUtil.isBlank(province);
@@ -369,13 +376,82 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                         .fullShortUrl(fullShortUrl)
                         .date(new Date())
                         .cnt(1)
-                        .province(unknownFlag ? province : "未知")
-                        .city(unknownFlag ? localResultobj.getString("city") : "未知")
+                        .province(actualProvince = unknownFlag ?  "未知" : province)
+                        .city(actualCity = unknownFlag ?  "未知" : localResultobj.getString("city"))
                         .adcode(unknownFlag ? localResultobj.getString("adcode") : "未知")
                         .country("中国")
                         .build();
                 tLinkLocaleStatsMapper.insertOrUpdate(tLinkLocaleStatsDO);
             }
+            //获取操作系统
+            String stringOs = httpForOS((HttpServletRequest) request);
+            TLinkOsStatsDO tLinkOsStatsDO = TLinkOsStatsDO
+                    .builder()
+                    .gid(gid)
+                    .fullShortUrl(fullShortUrl)
+                    .date(new Date())
+                    .cnt(1)
+                    .os(stringOs)
+                    .build();
+            tLinkOsStatsMapper.insertOrUpdate(tLinkOsStatsDO);
+            //获取浏览器
+            String browser = httpForBrowser((HttpServletRequest) request);
+            TLinkBrowserStatsDO tLinkBrowserStatsDO = TLinkBrowserStatsDO
+                    .builder()
+                    .gid(gid)
+                    .fullShortUrl(fullShortUrl)
+                    .date(new Date())
+                    .cnt(1)
+                    .browser(browser)
+                    .build();
+            tLinkBrowserStatsMapper.insertOrUpdate(tLinkBrowserStatsDO);
+            //获取高频访问的完整短链接
+            TLinkAccessLogsDO tLinkAccessLogsDO = TLinkAccessLogsDO
+                    .builder()
+                    .gid(gid)
+                    .fullShortUrl(fullShortUrl)
+                    .user(uv.get())
+                    .ip(ipAddress)
+                    .os(stringOs)
+                    .browser(browser)
+                    .build();
+            tLinkAccessLogsMapper.insert(tLinkAccessLogsDO);
+
+            //统计设备信息
+            String device = LinkUtil.getDevice(((HttpServletRequest) request));
+            TLinkDeviceStatsDO linkDeviceStatsDO = TLinkDeviceStatsDO.builder()
+                    .device(device)
+                    .cnt(1)
+                    .gid(gid)
+                    .fullShortUrl(fullShortUrl)
+                    .date(new Date())
+                    .build();
+            tLinkDeviceStatsMapper.shortLinkDeviceState(linkDeviceStatsDO);
+
+            //统计访问网络
+            String network = LinkUtil.getNetwork(((HttpServletRequest) request));
+            TLinkNetworkStatsDO linkNetworkStatsDO = TLinkNetworkStatsDO.builder()
+                    .network(network)
+                    .cnt(1)
+                    .gid(gid)
+                    .fullShortUrl(fullShortUrl)
+                    .date(new Date())
+                    .build();
+            tLinkNetworkStatsMapper.shortLinkNetworkState(linkNetworkStatsDO);
+
+            //记录短链接访问日志
+            TLinkAccessLogsDO tLinkAccessLogsDO1 = TLinkAccessLogsDO.builder()
+                    .user(uv.get())
+                    .ip(ipAddress)
+                    .browser(browser)
+                    .os(stringOs)
+                    .network(network)
+                    .device(device)
+                    .locale(StrUtil.join("-", "中国", actualProvince, actualCity))
+                    .gid(gid)
+                    .fullShortUrl(fullShortUrl)
+                    .build();
+            tLinkAccessLogsMapper.insert(tLinkAccessLogsDO1);
         } catch (Exception e) {
             log.error("统计访问量失败", e);
         }
